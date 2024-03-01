@@ -32,7 +32,7 @@ if [ -f "docker-compose.yaml" ]; then
     # try to stop and remove any existing containers
     docker-compose down
     # Run Docker Compose
-    docker-compose up -d
+    docker-compose up -d --build
     # check if stack is uo
     # Check if the stack is up
     if docker-compose ps | grep -q "Up"; then
