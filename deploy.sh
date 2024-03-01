@@ -9,10 +9,6 @@ repo_name=$(basename "$repository" .git)
 # SWITCH WORKING DIR
 cd "/app" || { echo "Failed to change to repository directory"; exit 1; }
 
-# # Authenticate with the GitHub token
-# git config --global credential.helper store
-# git config --global user.password "$token"
-
 # Clone the repository if it doesn't exist
 git clone "https://$token@github.com/$repository.git" "/repo" || { echo "Failed to clone repository"; exit 1; }
 
@@ -21,9 +17,6 @@ cd "/repo" || { echo "Failed to change to repository directory"; exit 1; }
 
 # Checkout the specified branch
 git checkout "$branch" || { echo "Failed to checkout branch"; exit 1; }
-
-# Reset the credential helper
-# git config --global --unset credential.helper
 
 # Run any additional commands or scripts here
 image_name="$repo_name:$branch"
