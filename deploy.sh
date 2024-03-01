@@ -5,7 +5,7 @@ repository="$REPO"
 branch="$BRANCH"
 token="$AUTH"
 repo_name=$(basename "$repository" .git)
-container_port="${PORT:-3000}"
+container_port="${rPORT:-3000}"
 network="${NETWORK:-reverseproxy}"
 
 # SWITCH WORKING DIR
@@ -21,7 +21,7 @@ cd "/repo" || { echo "Failed to change to repository directory"; exit 1; }
 git checkout "$branch" || { echo "Failed to checkout branch"; exit 1; }
 
 # Run any additional commands or scripts here
-image_name="$repo_name:$branch"
+image_name="$repo_name-$branch"
 docker build -t "$image_name" .
 
 container_name="$repo_name:$branch"
