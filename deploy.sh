@@ -28,6 +28,7 @@ git checkout "$branch" || { echo "Failed to checkout branch"; exit 1; }
 
 # Check if the docker-compose.yaml file exists
 if [ -f "docker-compose.yaml" ]; then
+    echo "docker-compose.yaml file found. Running Docker Compose."
     # try to stop and remove any existing containers
     docker-compose down
     # Run Docker Compose
