@@ -1,12 +1,10 @@
 #!/bin/sh
 
 # Set the repository and branch as environment variables
-repository="$REPO"
-branch="$BRANCH"
-token="$AUTH"
-repo_name=$(basename "$repository" .git)
-container_port="${rPORT:-3000}"
-network="${NETWORK:-reverseproxy}"
+REPO_NAME=$(basename "$repository" .git)
+PORT="${PORT:-3000}"
+NETWORK="${NETWORK:-reverseproxy}"
+export REPO_NAME
 
 # Check if Docker Compose is available
 if ! command -v docker-compose >/dev/null 2>&1; then
@@ -18,13 +16,13 @@ fi
 cd "/app" || { echo "Failed to change to repository directory"; exit 1; }
 
 # Clone the repository if it doesn't exist
-git clone "https://$token@github.com/$repository.git" "/repo" || { echo "Failed to clone repository"; exit 1; }
+git clone "https://$AUTH@github.com/$REPO.git" "/repo" || { echo "Failed to clone repository"; exit 1; }
 
 # Change to the repository directory
 cd "/repo" || { echo "Failed to change to repository directory"; exit 1; }
 
 # Checkout the specified branch
-git checkout "$branch" || { echo "Failed to checkout branch"; exit 1; }
+git checkout "$BRANCH" || { echo "Failed to checkout branch"; exit 1; }
 
 # Check if the docker-compose.yaml file exists
 if [ -f "docker-compose.yaml" ]; then
@@ -47,26 +45,31 @@ else
 fi
 
 # Run any additional commands or scripts here
-image_name="$repo_name-$branch"
-docker build -t "$image_name" .
+IMAGE_NAME="$REPO_NAME-$BRANCH"
+docker build -t "$IMAGE_NAME" .
 
-container_name="$repo_name:$branch"
+container_name="$REPO_NAME:$branch"
 
 # Check if the container is running
-if docker ps -a --format '{{.Names}}' | grep -q "$image_name"; then
+if docker ps -a --format '{{.Names}}' | grep -q "$IMAGE_NAME"; then
     # Stop the container
-    docker stop "$image_name"
+    docker stop "$IMAGE_NAME"
     # Remove the container
-    docker rm "$image_name"
+    docker rm "$IMAGE_NAME"
 fi
 
 # Check if the network exists or create it
-if ! docker network inspect $network >/dev/null 2>&1; then
-    docker network create $network
+if ! docker network inspect $NETWORK >/dev/null 2>&1; then
+    docker network create $NETWORK
 fi
 
-docker run -d -p $container_port:$container_port -h $image_name --name $image_name $image_name
-docker network connect $network $image_name
+docker run -d -p $PORT:$PORT -h $IMAGE_NAME --name $IMAGE_NAME $IMAGE_NAME
+docker network connect $NETWORK $IMAGE_NAME
 
-# Exit successfully
-exit 0
+if docker ps -a --format '{{.Names}}' | grep -q "$IMAGE_NAME"; then
+    echo "Container is running"
+    exit 0;
+    else
+    echo "Container is not running"
+    exit 1;
+fi
