@@ -1,10 +1,13 @@
 #!/bin/sh
 
 # Set the repository and branch as environment variables
-REPO_NAME=$(basename "$repository" .git)
+REPO_NAME=$(basename "$REPO" .git)
 PORT="${PORT:-3000}"
 NETWORK="${NETWORK:-reverseproxy}"
-export REPO_NAME
+
+#PREPARE SERVICE NAME
+SERVICE_NAME=$(echo "$REPO_NAME-$BRANCH" | sed 's/[^a-z0-9_-]//g')
+export SERVICE_NAME
 
 # Check if Docker Compose is available
 if ! command -v docker-compose >/dev/null 2>&1; then
