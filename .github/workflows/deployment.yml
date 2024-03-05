@@ -4,20 +4,24 @@ on:
     inputs:
       PORTAINER_INSTANCE:
         description: 'Portainer instance URL. Default https://portainer.snaply.biz.'
+        type: string
         required: true
         default: 'https://portainer.snaply.biz'
       MAX_ATTEMPTS:
         description: 'Max attempts for deployment checking if instance is up and running. Default 20.'
+        type: number
         required: true
         default: 20
       PORTAINER_INSTANCE_ENDPOINT:
         description: 'Portainer instance endpoint. Default 2.'
+        type: string
         required: true
         default: "2"
       PORTAINER_LIMIT_DEPLOYMENTS_PER_INSTANCE:
-        description: 'Throttle the amount of jobs on the instance. Default 5.'
+        description: 'Throttle the amount of jobs on the instance. Default 3 concurrent jobs.'
+        type: number
         required: true
-        default: 5
+        default: 3
     secrets:
       PORTAINER_TOKEN:
         description: 'Portainer API Token Key'
@@ -44,7 +48,7 @@ jobs:
         REPO_NAME=$(basename $REPO)
         echo "AUTODOCKER_CONTAINER_NAME=autodocker-${REPO_NAME}-${BRANCH}-${GITHUB_JOB}" >> $GITHUB_ENV
     - name: Check if instance is busy deploying another service
-      if: ${{ inputs.PORTAINER_LIMIT_DEPLOYMENTS_PER_INSTANCE -gt 0 }}
+      if: ${{ inputs.PORTAINER_LIMIT_DEPLOYMENTS_PER_INSTANCE > 0 }}
       run: |
         CURRENTLY_RUNNING=$(curl -X POST -H "X-API-Key:${{ secrets.PORTAINER_TOKEN }}" -H "Content-Type: application/json" -d '{"Image": "autodocker:latest", "name": "autodocker-test-deploy", "Env": ["BRANCH=${{ env.BRANCH }}", "REPO=${{ github.repository }}", "AUTH=${{ secrets.GIT_TOKEN }}", "NETWORK=reverseproxy"], "Volumes":{"/var/run/docker.sock":{}}, "Hostconfig":{"Binds":["/var/run/docker.sock:/var/run/docker.sock"]}}' "${{ env.PORTAINER_URI }}/json?all=true"  | jq "[.[] | select(.Image | contains(\"autodocker\")) | select(.State == \"running\")] | length")
         while [[ "$CURRENTLY_RUNNING" -ge "$PORTAINER_LIMIT_DEPLOYMENTS_PER_INSTANCE" ]]; do
