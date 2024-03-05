@@ -31,11 +31,11 @@ on:
         required: true
 
 env:
-  PORTAINER_URI: ${{ inputs.PORTAINER_INSTANCE }}/api/endpoints/${{ inputs.PORTAINER_INSTANCE_ENDPOINT }}/docker/containers
+  PORTAINER_URI: null
   AUTODOCKER_CONTAINER_NAME: null
   BRANCH: null
   CONTAINER_ID: null
-  MAX_ATTEMPTS: 20 # 10 minutes timeout for deployment
+  MAX_ATTEMPTS: null
 
 jobs:
   deploy-container:
@@ -43,10 +43,12 @@ jobs:
     steps:
     - name: Prepare environment
       run: |
+        echo "PORTAINER_URI=${{ inputs.PORTAINER_INSTANCE }}/api/endpoints/${{ inputs.PORTAINER_INSTANCE_ENDPOINT }}/docker/containers" >> $GITHUB_ENV
         echo "BRANCH=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_ENV
         echo "REPO=${GITHUB_REPOSITORY}" >> $GITHUB_ENV
         REPO_NAME=$(basename $REPO)
         echo "AUTODOCKER_CONTAINER_NAME=autodocker-${REPO_NAME}-${BRANCH}-${GITHUB_JOB}" >> $GITHUB_ENV
+        echo "MAX_ATTEMPTS=${{ inputs.MAX_ATTEMPTS }}" >> $GITHUB_ENV
     - name: Check if instance is busy deploying another service
       if: ${{ inputs.PORTAINER_LIMIT_DEPLOYMENTS_PER_INSTANCE > 0 }}
       run: |
