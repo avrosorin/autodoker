@@ -49,30 +49,31 @@ jobs:
         REPO_NAME=$(basename $REPO)
         echo "AUTODOCKER_CONTAINER_NAME=autodocker-${REPO_NAME}-${BRANCH}-${GITHUB_JOB}" >> $GITHUB_ENV
         echo "MAX_ATTEMPTS=${{ inputs.MAX_ATTEMPTS }}" >> $GITHUB_ENV
+        PORTAINER_LIMIT_DEPLOYMENTS_PER_INSTANCE=${{ inputs.PORTAINER_LIMIT_DEPLOYMENTS_PER_INSTANCE }}
     - name: Check if instance is busy deploying another service
-      if: ${{ inputs.PORTAINER_LIMIT_DEPLOYMENTS_PER_INSTANCE > 0 }}
+      if: ${{ env.PORTAINER_LIMIT_DEPLOYMENTS_PER_INSTANCE > 0 }}
       run: |
-        CURRENTLY_RUNNING=$(curl -X POST -H "X-API-Key:${{ secrets.PORTAINER_TOKEN }}" -H "Content-Type: application/json" -d '{"Image": "autodocker:latest", "name": "autodocker-test-deploy", "Env": ["BRANCH=${{ env.BRANCH }}", "REPO=${{ github.repository }}", "AUTH=${{ secrets.GIT_TOKEN }}", "NETWORK=reverseproxy"], "Volumes":{"/var/run/docker.sock":{}}, "Hostconfig":{"Binds":["/var/run/docker.sock:/var/run/docker.sock"]}}' "${{ env.PORTAINER_URI }}/json?all=true"  | jq "[.[] | select(.Image | contains(\"autodocker\")) | select(.State == \"running\")] | length")
+        CURRENTLY_RUNNING=$(curl -X POST -H "X-API-Key:${{ inputs.PORTAINER_TOKEN }}" -H "Content-Type: application/json" -d '{"Image": "autodocker:latest", "name": "autodocker-test-deploy", "Env": ["BRANCH=${{ env.BRANCH }}", "REPO=${{ github.repository }}", "AUTH=${{ inputs.GIT_TOKEN }}, ","NETWORK=reverseproxy"], "Volumes":{"/var/run/docker.sock":{}}, "Hostconfig":{"Binds":["/var/run/docker.sock:/var/run/docker.sock"]}}' "${{ env.PORTAINER_URI }}/json?all=true"  | jq "[.[] | select(.Image | contains(\"autodocker\")) | select(.State == \"running\")] | length")
         while [[ "$CURRENTLY_RUNNING" -ge "$PORTAINER_LIMIT_DEPLOYMENTS_PER_INSTANCE" ]]; do
             echo "Instance is busy deploying another service. Waiting for a free slot."
             sleep 60
-            CURRENTLY_RUNNING=$(curl -X POST -H "X-API-Key:${{ secrets.PORTAINER_TOKEN }}" -H "Content-Type: application/json" -d '{"Image": "autodocker:latest", "name": "autodocker-test-deploy", "Env": ["BRANCH=${{ env.BRANCH }}", "REPO=${{ github.repository }}", "AUTH=${{ secrets.GIT_TOKEN }}", "NETWORK=reverseproxy"], "Volumes":{"/var/run/docker.sock":{}}, "Hostconfig":{"Binds":["/var/run/docker.sock:/var/run/docker.sock"]}}' "${{ env.PORTAINER_URI }}/json?all=true"  | jq "[.[] | select(.Image | contains(\"autodocker\")) | select(.State == \"running\")] | length")
+            CURRENTLY_RUNNING=$(curl -X POST -H "X-API-Key:${{ inputs.PORTAINER_TOKEN }}" -H "Content-Type: application/json" -d '{"Image": "autodocker:latest", "name": "autodocker-test-deploy", "Env": ["BRANCH=${{ env.BRANCH }}", "REPO=${{ github.repository }}", "NETWORK=reverseproxy"], "Volumes":{"/var/run/docker.sock":{}}, "Hostconfig":{"Binds":["/var/run/docker.sock:/var/run/docker.sock"]}}' "${{ env.PORTAINER_URI }}/json?all=true"  | jq "[.[] | select(.Image | contains(\"autodocker\")) | select(.State == \"running\")] | length")
         done
     - name: Create AutoDocker instance
       run: |
-        CONTAINER_ID=$(curl -X POST -H "X-API-Key:${{ secrets.PORTAINER_TOKEN }}" -H "Content-Type: application/json" -d '{"Image": "autodocker:latest", "name": "autodocker-test-deploy", "Env": ["BRANCH=${{ env.BRANCH }}", "REPO=${{ github.repository }}", "AUTH=${{ secrets.GIT_TOKEN }}", "NETWORK=reverseproxy"], "Volumes":{"/var/run/docker.sock":{}}, "Hostconfig":{"Binds":["/var/run/docker.sock:/var/run/docker.sock"]}}' "${{ env.PORTAINER_URI }}/create?name=${{ env.CONTAINER_NAME }}"  | jq -r '.Id')
+        CONTAINER_ID=$(curl -X POST -H "X-API-Key:${{ inputs.PORTAINER_TOKEN }}" -H "Content-Type: application/json" -d '{"Image": "autodocker:latest", "name": "${{ env.CONTAINER_NAME }}", "Env": ["BRANCH=${{ env.BRANCH }}", "REPO=${{ github.repository }}", "NETWORK=reverseproxy"], "Volumes":{"/var/run/docker.sock":{}}, "Hostconfig":{"Binds":["/var/run/docker.sock:/var/run/docker.sock"]}}' "${{ env.PORTAINER_URI }}/create?name=${{ env.CONTAINER_NAME }}"  | jq -r '.Id')
         echo "CONTAINER_ID=${CONTAINER_ID}" >> $GITHUB_ENV
     - name: Start container
       if: ${{ env.CONTAINER_ID }} != null
       run: |
-        curl -X POST -H "X-API-Key:${{ secrets.PORTAINER_TOKEN }}" -H "Content-Type: application/json" -d '{}' "${{ env.PORTAINER_URI }}/${{ env.CONTAINER_ID }}/start"
+        curl -X POST -H "X-API-Key:${{ inputs.PORTAINER_TOKEN }}" -H "Content-Type: application/json" -d '{}' "${{ env.PORTAINER_URI }}/${{ env.CONTAINER_ID }}/start"
         sleep 5
     - name: Check deployment status
       run: |
         ATTEMPTS=0
         SUCCESS="false"
         while true; do
-            response=$(curl -X GET -H "X-API-Key:${{ secrets.PORTAINER_TOKEN }}" -H "Content-Type: application/json" "${{ env.PORTAINER_URI }}/${{ env.CONTAINER_ID }}/json")
+            response=$(curl -X GET -H "X-API-Key:${{ inputs.PORTAINER_TOKEN }}" -H "Content-Type: application/json" "${{ env.PORTAINER_URI }}/${{ env.CONTAINER_ID }}/json")
             status=$(echo $response | jq -r ".State.Status")
             if [[ $status != "running" ]] || (( ATTEMPTS > $MAX_ATTEMPTS )); then
                 SUCCESS="true"
@@ -83,16 +84,16 @@ jobs:
         done
         if [ "$SUCCESS" = "false" ] && [ "$ATTEMPTS" -gt "$MAX_ATTEMPTS" ]; then
             echo "Container creation timeout. Forcing closing the container."
-            curl -X POST -H "X-API-Key:${{ secrets.PORTAINER_TOKEN }}" -H "Content-Type: application/json" -d '{}' "${{ env.PORTAINER_URI }}/${{ env.CONTAINER_ID }}/stop"
+            curl -X POST -H "X-API-Key:${{ inputs.PORTAINER_TOKEN }}" -H "Content-Type: application/json" -d '{}' "${{ env.PORTAINER_URI }}/${{ env.CONTAINER_ID }}/stop"
             exit 1
         fi
         EXIT_CODE=$(echo $response | jq -r '.State.ExitCode')
         if [[ $EXIT_CODE != 0 ]]; then
             echo "Container failed with exit code $EXIT_CODE"
             echo "LOGS:"
-              curl -X GET -H "X-API-Key:${{ secrets.PORTAINER_TOKEN }}" -H "Content-Type: application/json" "${{ env.PORTAINER_URI }}/${{ env.CONTAINER_ID }}/logs?stdout=true&stderr=true&tail=50"
+              curl -X GET -H "X-API-Key:${{ inputs.PORTAINER_TOKEN }}" -H "Content-Type: application/json" "${{ env.PORTAINER_URI }}/${{ env.CONTAINER_ID }}/logs?stdout=true&stderr=true&tail=50"
             exit $EXIT_CODE
         fi
     - name: Remove autodocker container
       run: |
-        curl -X DELETE -H "X-API-Key:${{ secrets.PORTAINER_TOKEN }}" -H "Content-Type: application/json" "${{ env.PORTAINER_URI }}/${{ env.CONTAINER_ID }}?v=true&force=true"
+        curl -X DELETE -H "X-API-Key:${{ inputs.PORTAINER_TOKEN }}" -H "Content-Type: application/json" "${{ env.PORTAINER_URI }}/${{ env.CONTAINER_ID }}?v=true&force=true"
