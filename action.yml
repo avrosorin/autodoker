@@ -43,26 +43,25 @@ jobs:
     steps:
     - name: Prepare environment
       run: |
-        echo "PORTAINER_URI=${{ inputs.PORTAINER_INSTANCE }}/api/endpoints/${{ inputs.PORTAINER_INSTANCE_ENDPOINT }}/docker/containers" >> $GITHUB_ENV
-        echo "BRANCH=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_ENV
-        echo "REPO=${GITHUB_REPOSITORY}" >> $GITHUB_ENV
+        echo "PORTAINER_URI='${{ inputs.PORTAINER_INSTANCE }}/api/endpoints/${{ inputs.PORTAINER_INSTANCE_ENDPOINT }}/docker/containers'" >> $GITHUB_ENV
+        echo "BRANCH='${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}'" >> $GITHUB_ENV
+        echo "REPO='${GITHUB_REPOSITORY}'" >> $GITHUB_ENV
         REPO_NAME=$(basename $REPO)
-        echo "AUTODOCKER_CONTAINER_NAME=autodocker-${REPO_NAME}-${BRANCH}-${GITHUB_JOB}" >> $GITHUB_ENV
-        echo "MAX_ATTEMPTS=${{ inputs.MAX_ATTEMPTS }}" >> $GITHUB_ENV
-        echo "::set-output name=PORTAINER_LIMIT_DEPLOYMENTS_PER_INSTANCE::${{ inputs.PORTAINER_LIMIT_DEPLOYMENTS_PER_INSTANCE }}"
+        echo "AUTODOCKER_CONTAINER_NAME='autodocker-${REPO_NAME}-${BRANCH}-${GITHUB_JOB}'" >> $GITHUB_ENV
+        echo "MAX_ATTEMPTS='${{ inputs.MAX_ATTEMPTS }}'" >> $GITHUB_ENV
     - name: Check if instance is busy deploying another service
-      if: ${{ env.PORTAINER_LIMIT_DEPLOYMENTS_PER_INSTANCE > 0 }}
+      if: ${{ inputs.PORTAINER_LIMIT_DEPLOYMENTS_PER_INSTANCE > 0 }}
       run: |
-        CURRENTLY_RUNNING=$(curl -X POST -H "X-API-Key:${{ inputs.PORTAINER_TOKEN }}" -H "Content-Type: application/json" -d '{"Image": "autodocker:latest", "name": "autodocker-test-deploy", "Env": ["BRANCH=${{ env.BRANCH }}", "REPO=${{ github.repository }}", "AUTH=${{ inputs.GIT_TOKEN }}, ","NETWORK=reverseproxy"], "Volumes":{"/var/run/docker.sock":{}}, "Hostconfig":{"Binds":["/var/run/docker.sock:/var/run/docker.sock"]}}' "${{ env.PORTAINER_URI }}/json?all=true"  | jq "[.[] | select(.Image | contains(\"autodocker\")) | select(.State == \"running\")] | length")
-        while [[ "$CURRENTLY_RUNNING" -ge "${{ steps.prepare_environment.outputs.PORTAINER_LIMIT_DEPLOYMENTS_PER_INSTANCE }}" ]]; do
+        CURRENTLY_RUNNING=$(curl -X POST -H "X-API-Key:${{ inputs.PORTAINER_TOKEN }}" -H "Content-Type: application/json" -d '{"Image": "autodocker:latest", "name": "autodocker-test-deploy", "Env": ["BRANCH=${{ env.BRANCH }}", "REPO=${{ github.repository }}", "AUTH=${{ inputs.GIT_TOKEN }}", "NETWORK=reverseproxy"], "Volumes":{"/var/run/docker.sock":{}}, "Hostconfig":{"Binds":["/var/run/docker.sock:/var/run/docker.sock"]}}' "${{ env.PORTAINER_URI }}/json?all=true"  | jq "[.[] | select(.Image | contains(\"autodocker\")) | select(.State == \"running\")] | length")
+        while [[ "$CURRENTLY_RUNNING" -ge "$PORTAINER_LIMIT_DEPLOYMENTS_PER_INSTANCE" ]]; do
             echo "Instance is busy deploying another service. Waiting for a free slot."
             sleep 60
-            CURRENTLY_RUNNING=$(curl -X POST -H "X-API-Key:${{ inputs.PORTAINER_TOKEN }}" -H "Content-Type: application/json" -d '{"Image": "autodocker:latest", "name": "autodocker-test-deploy", "Env": ["BRANCH=${{ env.BRANCH }}", "REPO=${{ github.repository }}", "NETWORK=reverseproxy"], "Volumes":{"/var/run/docker.sock":{}}, "Hostconfig":{"Binds":["/var/run/docker.sock:/var/run/docker.sock"]}}' "${{ env.PORTAINER_URI }}/json?all=true"  | jq "[.[] | select(.Image | contains(\"autodocker\")) | select(.State == \"running\")] | length")
+            CURRENTLY_RUNNING=$(curl -X POST -H "X-API-Key:${{ inputs.PORTAINER_TOKEN }}" -H "Content-Type: application/json" -d '{"Image": "autodocker:latest", "name": "autodocker-test-deploy", "Env": ["BRANCH=${{ env.BRANCH }}", "REPO=${{ github.repository }}", "AUTH=${{ inputs.GIT_TOKEN }}", "NETWORK=reverseproxy"], "Volumes":{"/var/run/docker.sock":{}}, "Hostconfig":{"Binds":["/var/run/docker.sock:/var/run/docker.sock"]}}' "${{ env.PORTAINER_URI }}/json?all=true"  | jq "[.[] | select(.Image | contains(\"autodocker\")) | select(.State == \"running\")] | length")
         done
     - name: Create AutoDocker instance
       run: |
-        CONTAINER_ID=$(curl -X POST -H "X-API-Key:${{ inputs.PORTAINER_TOKEN }}" -H "Content-Type: application/json" -d '{"Image": "autodocker:latest", "name": "${{ env.CONTAINER_NAME }}", "Env": ["BRANCH=${{ env.BRANCH }}", "REPO=${{ github.repository }}", "NETWORK=reverseproxy"], "Volumes":{"/var/run/docker.sock":{}}, "Hostconfig":{"Binds":["/var/run/docker.sock:/var/run/docker.sock"]}}' "${{ env.PORTAINER_URI }}/create?name=${{ env.CONTAINER_NAME }}"  | jq -r '.Id')
-        echo "::set-output name=CONTAINER_ID::${CONTAINER_ID}"
+        CONTAINER_ID=$(curl -X POST -H "X-API-Key:${{ inputs.PORTAINER_TOKEN }}" -H "Content-Type: application/json" -d '{"Image": "autodocker:latest", "name": "autodocker-test-deploy", "Env": ["BRANCH=${{ env.BRANCH }}", "REPO=${{ github.repository }}", "AUTH=${{ inputs.GIT_TOKEN }}", "NETWORK=reverseproxy"], "Volumes":{"/var/run/docker.sock":{}}, "Hostconfig":{"Binds":["/var/run/docker.sock:/var/run/docker.sock"]}}' "${{ env.PORTAINER_URI }}/create?name=${{ env.CONTAINER_NAME }}"  | jq -r '.Id')
+        echo "CONTAINER_ID='${CONTAINER_ID}'" >> $GITHUB_ENV
     - name: Start container
       if: ${{ env.CONTAINER_ID }} != null
       run: |
@@ -75,14 +74,14 @@ jobs:
         while true; do
             response=$(curl -X GET -H "X-API-Key:${{ inputs.PORTAINER_TOKEN }}" -H "Content-Type: application/json" "${{ env.PORTAINER_URI }}/${{ env.CONTAINER_ID }}/json")
             status=$(echo $response | jq -r ".State.Status")
-            if [[ $status != "running" ]] || (( ATTEMPTS > ${{ env.MAX_ATTEMPTS }} )); then
+            if [[ $status != "running" ]] || (( ATTEMPTS > $MAX_ATTEMPTS )); then
                 SUCCESS="true"
                 break
             fi
             sleep 30
             ATTEMPTS=$((ATTEMPTS+1))
         done
-        if [ "$SUCCESS" = "false" ] && [ "$ATTEMPTS" -gt "${{ env.MAX_ATTEMPTS }}" ]; then
+        if [ "$SUCCESS" = "false" ] && [ "$ATTEMPTS" -gt "$MAX_ATTEMPTS" ]; then
             echo "Container creation timeout. Forcing closing the container."
             curl -X POST -H "X-API-Key:${{ inputs.PORTAINER_TOKEN }}" -H "Content-Type: application/json" -d '{}' "${{ env.PORTAINER_URI }}/${{ env.CONTAINER_ID }}/stop"
             exit 1
