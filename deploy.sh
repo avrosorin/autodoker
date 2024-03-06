@@ -32,7 +32,9 @@ if [ -f "docker-compose.yaml" ]; then
     echo "docker-compose.yaml file found. Running Docker Compose."
     # try to stop and remove any existing containers
     docker-compose down
-    # Run Docker Compose
+    # remove docker image for space reasons
+    docker images rm -f "$SERVICE_NAME" || {echo "No image to remove, please check"; }
+    # Run Docker Composedocke
     docker-compose up -d --build
     # check if stack is uo
     # Check if the stack is up
@@ -57,6 +59,8 @@ container_name="$REPO_NAME:$branch"
 if docker ps -a --format '{{.Names}}' | grep -q "$IMAGE_NAME"; then
     # Stop the container
     docker stop "$IMAGE_NAME"
+    # Remove image
+    docker image rm -f "$IMAGE_NAME:latest"
     # Remove the container
     docker rm "$IMAGE_NAME"
 fi
