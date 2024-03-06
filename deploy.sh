@@ -33,8 +33,8 @@ if [ -f "docker-compose.yaml" ]; then
     # try to stop and remove any existing containers
     docker-compose down
     # remove docker image for space reasons
-    docker images rm -f "$SERVICE_NAME" || {echo "No image to remove, please check"; }
-    # Run Docker Composedocke
+    docker images rm -f "$SERVICE_NAME" || { echo "No image to remove, please check"; }
+    # Run Docker Compose docke
     docker-compose up -d --build
     # check if stack is uo
     # Check if the stack is up
