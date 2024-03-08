@@ -42,9 +42,6 @@ if [ -f "docker-compose.yaml" ]; then
         # Get the current time
         CURRENT_TIME=$(date +%s)
         # Calculate the duration in seconds
-        echo $START_TIME
-        echo $CURRENT_TIME
-        # DURATION=$((CURRENT_TIME - START_TIME))
         DURATION=$(echo "$CURRENT_TIME - $START_TIME" | bc -l)
         # Check if the duration is less than 1 minute (60 seconds)
         if [ $DURATION -lt 60 ]; then
