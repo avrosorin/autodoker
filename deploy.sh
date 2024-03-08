@@ -30,18 +30,28 @@ git checkout "$BRANCH" || { echo "Failed to checkout branch"; exit 1; }
 # Check if the docker-compose.yaml file exists
 if [ -f "docker-compose.yaml" ]; then
     echo "docker-compose.yaml file found. Running Docker Compose."
-    # try to stop and remove any existing containers
-    docker-compose down
-    # remove docker image for space reasons
-    docker images rm -f "$SERVICE_NAME" || { echo "No image to remove, please check"; }
-    # Run Docker Compose docke
-    docker-compose up -d --build
-    # check if stack is uo
+    # Get the current image ID before building a new one
+    CURRENT_IMAGE_ID=$(docker images -q "$SERVICE_NAME")
+    # Run Docker Compose
+    docker-compose up -d --build --force-recreate
     # Check if the stack is up
     if docker-compose ps | grep -q "Up"; then
-        echo "Docker Compose stack is running."
+        # Get the start time of the stack
+        START_TIME=$(docker inspect --format='{{.State.StartedAt}}' $(docker-compose ps -q))
+        # Get the current time
+        CURRENT_TIME=$(date +%s)
+        # Calculate the duration in seconds
+        DURATION=$((CURRENT_TIME - $(date -d "$START_TIME" +%s)))
+        # Check if the duration is less than 1 minute (60 seconds)
+        if [ $DURATION -lt 60 ]; then
+            echo "Stack is freshly deployed. Build successful."
+            echo "Removing previous image to cleanup"
+            docker rmi -f "$CURRENT_IMAGE_ID"
+            exit 0
+        fi
+    fi
     else
-        echo "Docker Compose stack is not running."
+        echo "Docker Compose could not deploy the image succesfully."
         exit 1;
     fi
     exit 0;
