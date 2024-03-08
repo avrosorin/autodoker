@@ -37,12 +37,15 @@ if [ -f "docker-compose.yaml" ]; then
     # Check if the stack is up
     if docker-compose ps | grep -q "Up"; then
         # Get the start time of the Docker container
-        START_TIME=$(docker inspect --format='{{.State.StartedAt}}' $(docker-compose ps -q))
-        START_TIME=$(date -d "$START_TIME" +%s) 
+        SERVICE_STATRT_TIME=$(docker inspect --format='{{.State.StartedAt}}' $(docker-compose ps -q))
+        START_TIME=$(date -d "$SERVICE_STATRT_TIME" +%s) 
         # Get the current time
         CURRENT_TIME=$(date +%s)
         # Calculate the duration in seconds
-        DURATION=$((CURRENT_TIME - START_TIME))
+        echo $START_TIME
+        echo $CURRENT_TIME
+        # DURATION=$((CURRENT_TIME - START_TIME))
+        DURATION=$(echo "$CURRENT_TIME - $START_TIME" | bc -l)
         # Check if the duration is less than 1 minute (60 seconds)
         if [ $DURATION -lt 60 ]; then
             echo "Stack is freshly deployed. Build successful."
