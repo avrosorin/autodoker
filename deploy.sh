@@ -32,8 +32,13 @@ if [ -f "docker-compose.yaml" ]; then
     echo "docker-compose.yaml file found. Running Docker Compose."
     # Get the current image ID before building a new one
     CURRENT_IMAGE_ID=$(docker images -q "$SERVICE_NAME")
+    echo "Current Image ID: $CURRENT_IMAGE_ID"
+
     # Run Docker Compose
     docker-compose up -d --build --force-recreate
+
+    echo "Checking if the stack is up and running"
+    
     # Check if the stack is up
     if docker-compose ps | grep -q "Up"; then
         # Get the start time of the Docker container

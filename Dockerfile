@@ -3,6 +3,7 @@ FROM docker:latest
 
 # Install Docker and Git
 RUN apk update && apk add --no-cache git coreutils  && rm -rf /var/cache/apk/*
+RUN apk update && apk add --no-cache git coreutils dateutils && rm -rf /var/cache/apk/*
 
 # Set the working directory
 WORKDIR /app
