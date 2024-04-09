@@ -38,7 +38,7 @@ if [ -f "docker-compose.yaml" ]; then
     docker-compose up -d --build --force-recreate
 
     echo "Checking if the stack is up and running"
-    
+
     # Check if the stack is up
     if docker-compose ps | grep -q "Up"; then
         # Get the start time of the Docker container
@@ -47,7 +47,8 @@ if [ -f "docker-compose.yaml" ]; then
         # Get the current time
         CURRENT_TIME=$(date +%s)
         # Calculate the duration in seconds
-        DURATION=$(echo "$CURRENT_TIME - $START_TIME" | bc -l)
+        DURATION=$(echo "$CURRENT_TIME - $START_TIME" | tr -d '\r' | bc -l)
+        echo "Stack up for: $DURATION seconds"
         # Check if the duration is less than 1 minute (60 seconds)
         if [ $DURATION -lt 60 ]; then
             echo "Stack is freshly deployed. Build successful."
@@ -55,7 +56,6 @@ if [ -f "docker-compose.yaml" ]; then
             docker rmi -f "$CURRENT_IMAGE_ID"
             exit 0
         fi
-    fi
     else
         echo "Docker Compose could not deploy the image succesfully."
         exit 1;
