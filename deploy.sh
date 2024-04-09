@@ -43,9 +43,13 @@ if [ -f "docker-compose.yaml" ]; then
     if docker-compose ps | grep -q "Up"; then
         # Get the start time of the Docker container
         SERVICE_STATRT_TIME=$(docker inspect --format='{{.State.StartedAt}}' $(docker-compose ps -q))
-        START_TIME=$(date -d "$SERVICE_STATRT_TIME" +%s) 
-        # Get the current time
+        START_TIME=$(date -d "$SERVICE_STATRT_TIME" +%s)
         CURRENT_TIME=$(date +%s)
+        
+        echo SERVICE_STATRT_TIME: $SERVICE_STATRT_TIME
+        echo START_TIME: $START_TIME
+        echo CURRENT_TIME: $CURRENT_TIME
+
         # Calculate the duration in seconds
         DURATION=$(echo "$CURRENT_TIME - $START_TIME" | tr -d '\r' | bc -l)
         echo "Stack up for: $DURATION seconds"
